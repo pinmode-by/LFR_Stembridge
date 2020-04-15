@@ -1,2 +1,2 @@
 # LFR_Stembridge
-Line follower robot (STEMBRIDGE)
+Line Follower Robot (STEMBRIDGE)
