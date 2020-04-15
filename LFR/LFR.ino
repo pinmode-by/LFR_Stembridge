@@ -15,7 +15,7 @@ const byte BUTTON = 10;
 const byte NUM_SENS = 8;
 
 // pins PCB for Analog line 
-byte pinsLine[] = {A7, A6, A5, A4, A3, A2, A1, A0}; 
+byte pins[] = {A7, A6, A5, A4, A3, A2, A1, A0}; 
 int sensors[NUM_SENS]; 
 
 // functions declaration
@@ -35,12 +35,9 @@ void loop() {
 
 } 
 
-
-
 void drive(int left, int right) {
-
-   left = constrain(left, -speedMax, speedMax);
-   right = constrain(right, -speedMax, speedMax);
+   left = constrain(left, -255, 255);
+   right = constrain(right, -255, 255);
 
    if (left >= 0) {
       digitalWrite(AIN1, LOW);
@@ -72,3 +69,8 @@ void pinsSetup() {
     pinMode(BUTTON, INPUT_PULLUP);
 }
 
+void readSensors() {
+   for (int i = 0; i < NUM_SENS; ++i) {
+       sensors[i] = analogRead(pins[i]);  
+   }
+}
