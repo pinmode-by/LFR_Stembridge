@@ -24,36 +24,25 @@ void pinsSetup();
 void readSensors();
 
 void setup() {
-
   Serial.begin(9600);
   pinsSetup();
-  while (digitalRead(BUTTON)) {
-  }
+  while (digitalRead(BUTTON)); //waiting for button press
   delay(1000);
 }
 
 void loop() {
+  //Relay algorithm with 2 analog sensors
   int leftS = analogRead(A5);
   int rightS = analogRead(A2);
   if ( leftS < 300 && rightS > 300 ) {
-
-    drive(140, 20);
-
-  } else if ( leftS > 300 && rightS > 300 ) {
-
-    drive(140, 140);
-
-  } else if ( leftS > 300 && rightS < 300 ) {
-
-    drive(20, 140);
-
-  } else {
+    drive(140, 20);         //turn right
+  } 
+  else if ( leftS > 300 && rightS < 300 ) {
+    drive(20, 140);         //turn left
+  } 
+  else {                    //Both sensors are on white or black
     drive(140, 140);
   }
-
-
-
-
 }
 
 void drive(int left, int right) {
