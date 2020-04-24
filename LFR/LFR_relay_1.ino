@@ -24,24 +24,23 @@ void pinsSetup();
 void readSensors();
 
 void setup() {
-  
    Serial.begin(9600);
    pinsSetup();
-while(digitalRead(BUTTON));
+   while(digitalRead(BUTTON));
 } 
 
 void loop() {
-int value = analogRead(A4);
- if ( value < 200 ) {
-  drive(30,100);
- }
- if ( value >400){
- drive(100,30);
- }
- if ( value >200 && value <400){
- drive(80,80);
- }
-  
+  //Relay algorithm with one analog sensor
+  int value = analogRead(A4);
+  if ( value < 200 ) {
+    drive(30,100);
+  }
+  else if ( value >400){
+    drive(100,30);
+  }
+  else {
+    drive(80,80);
+  }
  }
 
 
