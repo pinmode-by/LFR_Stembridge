@@ -147,7 +147,7 @@ void lfr_rele() {
 
   } // end of basic loop
 }
-
+// 12.35 - 11,5meter
 void lfr_prop() {
   while (true) {
     if (isCmdBT(cmdSTOP)) {
