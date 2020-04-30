@@ -1,0 +1,6 @@
+// Line Folower Robot : Simplex8
+// controller : Arduino nano
+// driver     : TB6612
+// sensors    : pololu, QTR8 analog
+// motors     : N20, 20:1
+// full control via BT
