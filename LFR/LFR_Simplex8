@@ -4,3 +4,160 @@
 // sensors    : pololu, QTR8 analog
 // motors     : N20, 20:1
 // full control via BT
+
+#include <EEPROM.h>
+#include <SoftwareSerial.h>
+
+
+// motor's pins
+const byte AIN1 = 7;    // direction of left motor
+const byte AIN2 = 4;    // direction of left motor
+const byte BIN1 = 8;    // direction of right motor
+const byte BIN2 = 9;    // direction of right motor
+const byte PWMA = 5;    // left motor PWM
+const byte PWMB = 6;    // right motor PWM
+
+const byte BUTTON = 10;
+const byte SW1 = 11;
+const byte SW2 = 12;
+const byte NUM_SENS = 8;
+
+// pins PCB for Analog line
+byte pins[] = {A7, A6, A5, A4, A3, A2, A1, A0};
+int sensors[NUM_SENS];
+
+// address in EEPROM to save and load calibrations
+const unsigned ADDRESS = 400;
+int calibratedMinimum[NUM_SENS];
+int calibratedMaximum[NUM_SENS];
+
+// pins for Bluetooth
+const byte RXPIN = 3;  // RXPIN Arduino connect to TX pin on BT device
+const byte TXPIN = 2;  // TXPIN Arduino connect to RX pin on BT device
+SoftwareSerial BTSerial(RXPIN, TXPIN);
+
+// basic setting for LFR
+const int base_speed = 80;
+const float Kp = 0.1;
+
+const int START_DELAY = 1000;
+const char cmdSTART = 'l';
+const char cmdSTOP = 's';
+
+// functions declaration
+void drive(int left, int right);
+void pinsSetup();
+void loadEEPROM();
+bool pressButton();
+bool isCmdBT(char cmd);
+void lfr_rele();
+void lfr_prop();
+
+void setup() {
+  pinsSetup();
+  loadEEPROM();
+  BTSerial.begin(9600);
+}
+
+void loop() {
+  if (pressButton() || isCmdBT(cmdSTART)) {
+    //here is your main logic following line
+    delay(START_DELAY);
+    lfr_rele();   
+    //lfr_prop();
+  }
+} // loop
+
+
+//**********************************************************
+void drive(int left, int right) {
+  left = constrain(left, -255, 255);
+  right = constrain(right, -255, 255);
+
+  if (left >= 0) {
+    digitalWrite(AIN1, LOW);
+    digitalWrite(AIN2, HIGH);
+  } else {
+    digitalWrite(AIN1, HIGH);
+    digitalWrite(AIN2, LOW);
+  }
+
+  if (right >= 0) {
+    digitalWrite(BIN1, LOW);
+    digitalWrite(BIN2, HIGH);
+  } else {
+    digitalWrite(BIN1, HIGH);
+    digitalWrite(BIN2, LOW);
+  }
+  analogWrite(PWMA, abs(left));
+  analogWrite(PWMB, abs(right));
+} // drive
+
+
+void pinsSetup() {
+  pinMode(AIN1, OUTPUT);
+  pinMode(AIN2, OUTPUT);
+  pinMode(BIN1, OUTPUT);
+  pinMode(BIN2, OUTPUT);
+  pinMode(SW1, INPUT_PULLUP);
+  pinMode(SW2, INPUT_PULLUP);
+  pinMode(BUTTON, INPUT_PULLUP);
+}
+
+void loadEEPROM() {
+  unsigned address = ADDRESS;
+  for (int i = 0; i < NUM_SENS; ++i) {
+    EEPROM.get(address, calibratedMinimum[i]);
+    EEPROM.get(address + 2, calibratedMaximum[i]);
+    address += 4;
+  }
+}
+
+bool pressButton() {
+  return !digitalRead(BUTTON);
+}
+
+bool isCmdBT(char cmd) {
+  if (BTSerial.available()) {
+    char ch = BTSerial.read();
+    if (ch == cmd) {
+      return true;
+    }
+  }
+  return false;
+}
+
+//Relay algorithm with 2 analog sensors
+void lfr_rele() {
+  while (true) {
+    if (isCmdBT(cmdSTOP)) {
+      drive(0, 0);
+      return;
+    }
+    // main logic
+    int leftS = analogRead(A5);
+    int rightS = analogRead(A2);
+    if (leftS < 300 && rightS > 300) {
+      drive(140, 20);    //turn right
+    } else if (leftS > 300 && rightS < 300) {
+      drive(20, 140);    //turn left
+    } else {
+      drive(120, 120);   //Both sensors are on white or black
+    }
+
+  } // end of basic loop
+}
+
+void lfr_prop() {
+  while (true) {
+    if (isCmdBT(cmdSTOP)) {
+      drive(0, 0);
+      return;
+    }
+    // main logic
+    int sensL = analogRead(A5);
+    int sensR = analogRead(A2);
+    int delta = (sensR - sensL) * Kp;
+    drive(base_speed + delta, base_speed - delta);
+  }
+}
