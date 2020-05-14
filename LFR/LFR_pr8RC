@@ -1,0 +1,190 @@
+// Line Folower Robot (STEMBRIDGE)
+// controller : Arduino nano
+// driver     : TB6612
+//
+
+#include <SoftwareSerial.h>
+#include <IRremote.h>
+
+// motor's pins
+const byte AIN1 = 7;    // direction of left motor
+const byte AIN2 = 4;    // direction of left motor
+const byte BIN1 = 8;    // direction of right motor
+const byte BIN2 = 9;    // direction of right motor
+const byte PWMA = 5;    // left motor PWM
+const byte PWMB = 6;    // right motor PWM
+
+const byte BUTTON = 10;
+const byte NUM_SENS = 8;
+const byte IR_PIN = 11;
+const byte LED = 13;
+
+// Bluetooth
+const byte RXPIN = 3;
+const byte TXPIN = 2;
+SoftwareSerial BTSerial(RXPIN, TXPIN);
+
+//IR sensors
+IRrecv irrecv(IR_PIN);
+decode_results results;
+
+// pins PCB for Analog line
+byte pins[] = {A7, A6, A5, A4, A3, A2, A1, A0};
+int sensors[NUM_SENS];
+int  Ws[] = { -7, -5, -3, -1, 1, 3, 5, 7};
+int lastPos = 0;
+
+// address in EEPROM to save and load calibrations
+const unsigned ADDRESS = 400;
+int calibratedMinimum[NUM_SENS];
+int calibratedMaximum[NUM_SENS];
+
+enum command {cmdLFR, cmdStop, cmdTest, cmdReadSens, cmdInfo, cmdNo};
+
+const int START_DELAY = 1000;
+const char btSTART = 'l';
+const char btSTOP = 's';
+const unsigned long irSTART = 0x219E609FL;
+const unsigned long irSTOP = 0x219E48B7L;
+
+// functions declaration
+void drive(int left, int right);
+void pinsSetup();
+void readSensors();
+bool pressButton();
+void LFR();
+
+void setup() {
+  pinsSetup();
+  //loadEEPROM();
+  BTSerial.begin(9600);
+  irrecv.enableIRIn(); // Start the receiver
+}
+
+const float Kp = 30;
+const int SPEED = 150;
+
+void loop() {
+  int cmd = cmdNo;
+  if (pressButton() || isCmdBT(btSTART) || isCmdIR(irSTART)) {
+    cmd = cmdLFR;
+  }
+  switch (cmd) {
+    case cmdLFR:
+      digitalWrite(LED, HIGH);
+      delay(START_DELAY);
+      LFR();
+      digitalWrite(LED, LOW);
+      break;
+    case cmdTest:
+      break;
+    case cmdInfo:
+      break; 
+    case cmdReadSens:
+      break;
+      //...
+  } // switch
+}
+
+void drive(int left, int right) {
+  left = constrain(left, -255, 255);
+  right = constrain(right, -255, 255);
+
+  if (left >= 0) {
+    digitalWrite(AIN1, LOW);
+    digitalWrite(AIN2, HIGH);
+  }
+  else {
+    digitalWrite(AIN1, HIGH);
+    digitalWrite(AIN2, LOW);
+  }
+
+  if (right >= 0) {
+    digitalWrite(BIN1, LOW);
+    digitalWrite(BIN2, HIGH);
+  }
+  else {
+    digitalWrite(BIN1, HIGH);
+    digitalWrite(BIN2, LOW);
+  }
+  analogWrite(PWMA, abs(left));
+  analogWrite(PWMB, abs(right));
+} // drive
+
+
+void pinsSetup() {
+  pinMode(AIN1, OUTPUT);
+  pinMode(AIN2, OUTPUT);
+  pinMode(BIN1, OUTPUT);
+  pinMode(BIN2, OUTPUT);
+  pinMode(BUTTON, INPUT_PULLUP);
+}
+
+void readSensors() {
+  for (int i = 0; i < NUM_SENS; ++i) {
+    sensors[i] = analogRead(pins[i]);
+  }
+}
+
+bool pressButton() {
+  return !digitalRead(BUTTON);
+}
+
+bool isCmdBT(char cmd) {
+  if (BTSerial.available()) {
+    char ch = BTSerial.read();
+    if (ch == cmd) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool isCmdIR(unsigned long cmd){
+  if (irrecv.decode(&results)) {
+    if (results.value == cmd) {
+      irrecv.resume(); 
+      return true;
+    }
+    irrecv.resume(); 
+  } 
+  return false;
+}
+
+void LFR() {
+
+  while (true) {
+    if (isCmdBT(btSTOP) || isCmdIR(irSTOP)) {
+      drive(0, 0);
+      return;
+    }
+    readSensors();
+    int sum = 0;
+    int sW = 0;
+    bool onLine = false;
+    int pos = 0;
+    
+    for (int i = 0; i < NUM_SENS; ++i) {
+      int value = sensors[i];
+      if (value > 200) {
+        onLine = true;
+      }
+      sum += sensors[i];
+      sW += sensors[i] * Ws[i];
+    }
+  
+    if (onLine == false) {
+      if (lastPos > 0) {
+        pos = Ws[NUM_SENS-1];
+      } else {
+        pos = Ws[0];
+      }
+    } else {
+      pos = sW  / (float) sum;
+      lastPos = pos;
+    }
+  
+    int delta = pos * Kp;
+    drive(SPEED + delta, SPEED - delta);
+  } // while
+}
