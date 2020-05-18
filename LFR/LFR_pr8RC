@@ -32,7 +32,7 @@ decode_results results;
 byte pins[] = {A7, A6, A5, A4, A3, A2, A1, A0};
 int sensors[NUM_SENS];
 int  Ws[] = { -7, -5, -3, -1, 1, 3, 5, 7};
-int lastPos = 0;
+float lastPos = 0;
 
 // address in EEPROM to save and load calibrations
 const unsigned ADDRESS = 400;
@@ -162,7 +162,7 @@ void LFR() {
     int sum = 0;
     int sW = 0;
     bool onLine = false;
-    int pos = 0;
+    float pos = 0;
     
     for (int i = 0; i < NUM_SENS; ++i) {
       int value = sensors[i];
