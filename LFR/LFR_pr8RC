@@ -92,9 +92,7 @@ void loop() {
   if (pressButton())  {
     cmd = cmdLFR;
   }
-  //if (pressButton() || isCmdBT(btSTART) || isCmdIR(irSTART)) {
-  //  cmd = cmdLFR;
-  //}
+
   switch (cmd) {
     case cmdLFR:
       digitalWrite(LED, HIGH);
