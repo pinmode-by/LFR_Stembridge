@@ -49,12 +49,12 @@ const char btCALIBR = 'c';
 const char btREAD_SENS = 'r';
 const char btTEST = 't';
 const char btINFO = 'i';
-const unsigned long irSTART = 0x219E609FL;
-const unsigned long irSTOP = 0x219E48B7L;
-const unsigned long irCALIBR = 0x11111111;
-const unsigned long irREAD_SENS = 0x22222222;
-const unsigned long irTEST = 0x33333333;
-const unsigned long irINFO = 0x44444444;
+const unsigned long irSTART = 0x219E609F; // HOME
+const unsigned long irSTOP = 0x219E48B7;  // POWER
+const unsigned long irCALIBR = 0x219EF00F; // SEARCH
+const unsigned long irREAD_SENS = 0x219E50AF; // PLAY
+const unsigned long irTEST = 0x219E10EF;      // ENTER
+const unsigned long irINFO = 0x219E58A7;      // OPTION
 
 // functions declaration
 void drive(int left, int right);
@@ -68,21 +68,27 @@ int getCmdBT();
 int getCmdIR();
 void printInfoBT();
 void printInfoSerial();
+void test_drive();
+void readSensorsBT();
+void readSensorsSerial();
 
 void setup() {
   pinsSetup();
   loadEEPROM();
+  Serial.begin(9600);
   BTSerial.begin(9600);
   irrecv.enableIRIn(); // Start the receiver
 }
 
-const float Kp = 30;
-const int SPEED = 150;
+const float Kp = 35;
+const int SPEED = 200;
 
 void loop() {
   int cmd = cmdNo;
-  cmd = getCmdIR();
-  cmd = getCmdBT();
+  cmd = getCmdIR(); 
+  if (cmd == cmdNo) {
+    cmd = getCmdBT(); 
+  }
   if (pressButton())  {
     cmd = cmdLFR;
   }
@@ -100,6 +106,7 @@ void loop() {
       calibration();
       break;
     case cmdTest:
+      test_drive();
       break;
     case cmdInfoBT:
       printInfoBT();
@@ -108,8 +115,10 @@ void loop() {
       printInfoSerial();
       break;
     case cmdReadSensBT:
+      readSensorsBT();
       break;
     case cmdReadSensIR:
+      readSensorsSerial();
       break;
       //...
   } // switch
@@ -183,7 +192,7 @@ bool isCmdIR(unsigned long cmd) {
 void LFR() {
 
   while (true) {
-    if (isCmdBT(btSTOP) || isCmdIR(irSTOP)) {
+    if (isCmdIR(irSTOP) || isCmdBT(btSTOP)) {
       drive(0, 0);
       return;
     }
@@ -248,7 +257,7 @@ void calibration() {
     calibratedMaximum[i] = 0;
     calibratedMinimum[i] = 1023;
   }
-  const int loops = 4000;
+  const int loops = 10000;
   for (int j = 0; j < loops; j++) {
     readSensors();
     for (int i = 0; i < NUM_SENS; i++) {
@@ -285,6 +294,7 @@ int getCmdBT() {
         break;
     } // switch
   } // if
+  return retCmd;
 }
 
 int getCmdIR() {
@@ -322,6 +332,7 @@ void printInfoBT() {
     BTSerial.print("  ");
     BTSerial.println(calibratedMaximum[i]);
   }
+  Serial.println();
 }
 
 void printInfoSerial() {
@@ -334,4 +345,48 @@ void printInfoSerial() {
     Serial.print("  ");
     Serial.println(calibratedMaximum[i]);
   }
+  Serial.println();
 }
+
+void test_drive() {
+  int const TEST_SPEED = 80;
+  drive(TEST_SPEED, TEST_SPEED);
+  while (true) {
+    if (isCmdBT(btSTOP) || isCmdIR(irSTOP)) {
+      drive(0, 0);
+      return;
+    }
+  }
+}
+
+void readSensorsBT() {
+    for (;;) {
+    if (isCmdBT(btSTOP)) {
+        return;
+    }
+    readSensors();
+    for (int i = 0; i < NUM_SENS; i++) {
+      BTSerial.print(sensors[i]);
+      BTSerial.print(' ');
+    }
+    BTSerial.println();
+    delay(500);
+  }
+}
+
+void readSensorsSerial() {
+  for (;;) {
+    if (isCmdIR(irSTOP)) {
+        return;
+    }
+    readSensors();
+    for (int i = 0; i < NUM_SENS; i++) {
+      Serial.print(sensors[i]);
+      Serial.print(' ');
+    }
+    Serial.println();
+    delay(500);
+  }
+}
+
+
